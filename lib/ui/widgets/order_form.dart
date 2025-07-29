@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:order2image/services/database_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/patient_provider.dart';
 
@@ -13,11 +14,7 @@ class _OrderFormState extends State<OrderForm> {
   String? selectedProcedure;
   String? selectedPriority;
 
-  final procedures = [
-    'CT Abdomen',
-    'Chest X-Ray',
-    'Brain MRI',
-  ];
+  final procedures = ['CT Abdomen', 'Chest X-Ray', 'Brain MRI'];
 
   final priorities = ['Routine', 'STAT'];
 
@@ -34,8 +31,10 @@ class _OrderFormState extends State<OrderForm> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 8),
-        Text('Request Imaging for ${selectedPatient.firstName} ${selectedPatient.lastName}',
-            style: const TextStyle(fontWeight: FontWeight.bold)),
+        Text(
+          'Request Imaging for ${selectedPatient.firstName} ${selectedPatient.lastName}',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
         DropdownButtonFormField<String>(
           decoration: const InputDecoration(labelText: 'Procedure'),
@@ -56,14 +55,31 @@ class _OrderFormState extends State<OrderForm> {
         ),
         const SizedBox(height: 8),
         ElevatedButton(
-          onPressed: (selectedProcedure != null && selectedPriority != null)
-              ? () {
-                  // TODO: Save order to DB + trigger HL7 generation
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Order submitted (not yet wired).')),
-                  );
-                }
-              : null,
+          onPressed: () async {
+            final patient = provider.selectedPatient!;
+            final orderId = 'O${DateTime.now().millisecondsSinceEpoch}';
+
+            await DatabaseService.instance.insertOrder(
+              orderId: orderId,
+              patientId: patient.patientID,
+              procedureCode: selectedProcedure!,
+              orderDateTime: DateTime.now().toIso8601String(),
+            );
+
+            await DatabaseService.instance.logAudit('ORDER_CREATED', orderId);
+            print('Order $orderId for ${patient.firstName} submitted.');
+
+            setState(() {
+              selectedProcedure = null;
+              selectedPriority = null;
+            });
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Order submitted successfully.')),
+            );
+
+          },
+
           child: const Text('Send Order'),
         ),
       ],

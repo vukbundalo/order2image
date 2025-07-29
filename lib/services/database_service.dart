@@ -75,7 +75,7 @@ class DatabaseService {
       );
     ''');
 
-    // Seed mock patient data
+    // Defining mock patient data
     await db.insert('Patient', {
       'PatientID': 'P1001',
       'MRN': '1001',
@@ -118,4 +118,31 @@ class DatabaseService {
   Future<void> close() async {
     await _db?.close();
   }
+
+  Future<void> insertOrder({
+  required String orderId,
+  required String patientId,
+  required String procedureCode,
+  required String orderDateTime,
+}) async {
+  final dbInstance = await db;
+  await dbInstance.insert('Order', {
+    'OrderID': orderId,
+    'PatientID': patientId,
+    'ProcedureCode': procedureCode,
+    'OrderDateTime': orderDateTime,
+  });
 }
+
+Future<void> logAudit(String eventType, String refId) async {
+  final dbInstance = await db;
+  await dbInstance.insert('Audit', {
+    'Time': DateTime.now().toIso8601String(),
+    'EventType': eventType,
+    'RefID': refId,
+  });
+}
+
+}
+
+
