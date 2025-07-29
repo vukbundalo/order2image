@@ -24,4 +24,8 @@ class PatientProvider with ChangeNotifier {
     _selectedPatient = null;
     notifyListeners();
   }
+
+  bool get hasSelection => _selectedPatient != null;
+
 }
+

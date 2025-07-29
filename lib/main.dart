@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'services/database_service.dart';
 import 'package:provider/provider.dart';
 import 'providers/patient_provider.dart';
+import 'ui/widgets/order_form.dart';
+
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -56,21 +58,53 @@ class MainScreen extends StatelessWidget {
                     color: Colors.blue.shade50,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text(
+                      children: [
+                        const Text(
                           'Doctor Dashboard',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
                           ),
                         ),
-                        SizedBox(height: 8),
-                        // TODO: Add search/filter, patient list, order form
+                        const SizedBox(height: 8),
                         Expanded(
-                          child: Center(
-                            child: Text('Patient List + Order Form'),
+                          child: Consumer<PatientProvider>(
+                            builder: (context, provider, child) {
+                              final patients = provider.patients;
+                              final selected = provider.selectedPatient;
+
+                              if (patients.isEmpty) {
+                                return const Center(
+                                  child: Text('No patients found.'),
+                                );
+                              }
+
+                              return ListView.builder(
+                                itemCount: patients.length,
+                                itemBuilder: (context, index) {
+                                  final patient = patients[index];
+                                  final isSelected =
+                                      selected?.patientID == patient.patientID;
+
+                                  return ListTile(
+                                    title: Text(
+                                      '${patient.firstName} ${patient.lastName}',
+                                    ),
+                                    subtitle: Text(
+                                      'MRN: ${patient.mrn}  DOB: ${patient.dob}',
+                                    ),
+                                    selected: isSelected,
+                                    selectedTileColor: Colors.blue.shade100,
+                                    onTap: () =>
+                                        provider.selectPatient(patient),
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
+                        const SizedBox(height: 8),
+                        OrderForm(),
                       ],
                     ),
                   ),
@@ -92,7 +126,6 @@ class MainScreen extends StatelessWidget {
                           ),
                         ),
                         SizedBox(height: 8),
-                        // TODO: Add order list, capture image controls
                         Expanded(
                           child: Center(
                             child: Text('Scheduled Orders + Capture'),
