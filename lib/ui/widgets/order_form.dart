@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:order2image/providers/order_provider.dart';
 import 'package:order2image/services/database_service.dart';
 import 'package:provider/provider.dart';
 import '../../providers/patient_provider.dart';
@@ -67,6 +68,8 @@ class _OrderFormState extends State<OrderForm> {
             );
 
             await DatabaseService.instance.logAudit('ORDER_CREATED', orderId);
+            Provider.of<OrderProvider>(context, listen: false).refresh();
+
             print('Order $orderId for ${patient.firstName} submitted.');
 
             setState(() {

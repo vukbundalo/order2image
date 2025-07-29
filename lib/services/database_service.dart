@@ -143,6 +143,20 @@ Future<void> logAudit(String eventType, String refId) async {
   });
 }
 
+Future<List<Map<String, dynamic>>> getPendingOrders() async {
+  final dbInstance = await db;
+  return dbInstance.rawQuery('''
+    SELECT o.OrderID, o.PatientID, o.ProcedureCode, o.OrderDateTime,
+           p.FirstName, p.LastName
+    FROM "Order" o
+    JOIN Patient p ON o.PatientID = p.PatientID
+    LEFT JOIN Image i ON o.PatientID = i.PatientID
+    WHERE i.ImageID IS NULL
+    ORDER BY o.OrderDateTime DESC
+  ''');
+}
+
+
 }
 
 

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:order2image/providers/order_provider.dart';
 import 'services/database_service.dart';
 import 'package:provider/provider.dart';
 import 'providers/patient_provider.dart';
 import 'ui/widgets/order_form.dart';
-
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,6 +16,9 @@ Future<void> main() async {
       providers: [
         ChangeNotifierProvider(
           create: (_) => PatientProvider()..loadPatients(),
+        ),
+        ChangeNotifierProvider(
+          create: (_) => OrderProvider()..loadPendingOrders(),
         ),
       ],
       child: const Order2ImageApp(),
@@ -117,7 +120,7 @@ class MainScreen extends StatelessWidget {
                     color: Colors.green.shade50,
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
+                      children: [
                         Text(
                           'Imaging Dashboard',
                           style: TextStyle(
@@ -127,8 +130,35 @@ class MainScreen extends StatelessWidget {
                         ),
                         SizedBox(height: 8),
                         Expanded(
-                          child: Center(
-                            child: Text('Scheduled Orders + Capture'),
+                          child: Consumer<OrderProvider>(
+                            builder: (context, provider, _) {
+                              final orders = provider.orders;
+
+                              if (orders.isEmpty) {
+                                return const Center(
+                                  child: Text('No pending imaging orders.'),
+                                );
+                              }
+
+                              return ListView.builder(
+                                itemCount: orders.length,
+                                itemBuilder: (context, index) {
+                                  final order = orders[index];
+                                  return ListTile(
+                                    title: Text('${order.procedureCode}'),
+                                    subtitle: Text(
+                                      'Patient: ${order.patientName}',
+                                    ),
+                                    trailing: Text(
+                                      order.orderDateTime.substring(0, 16),
+                                    ),
+                                    onTap: () {
+                                      // TODO: Capture Image logic goes here
+                                    },
+                                  );
+                                },
+                              );
+                            },
                           ),
                         ),
                       ],
