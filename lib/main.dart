@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:order2image/models/audit_provider.dart';
 import 'package:order2image/providers/order_provider.dart';
+import 'package:order2image/ui/widgets/audit_pane.dart';
 import 'services/database_service.dart';
 import 'package:provider/provider.dart';
 import 'providers/patient_provider.dart';
@@ -20,6 +22,7 @@ Future<void> main() async {
         ChangeNotifierProvider(
           create: (_) => OrderProvider()..loadPendingOrders(),
         ),
+        ChangeNotifierProvider(create: (_) => AuditProvider()..load()),
       ],
       child: const Order2ImageApp(),
     ),
@@ -152,8 +155,49 @@ class MainScreen extends StatelessWidget {
                                     trailing: Text(
                                       order.orderDateTime.substring(0, 16),
                                     ),
-                                    onTap: () {
-                                      // TODO: Capture Image logic goes here
+                                    onTap: () async {
+                                      final imageId =
+                                          'IMG${DateTime.now().millisecondsSinceEpoch}';
+                                      final studyDate = DateTime.now()
+                                          .toIso8601String()
+                                          .substring(0, 10);
+                                      final filePath =
+                                          'C:/MiniPACS/DICOM/Out/$imageId.dcm';
+
+                                      await DatabaseService.instance
+                                          .insertImage(
+                                            imageId: imageId,
+                                            orderId: order.orderId,
+                                            patientId: order.patientId,
+                                            filePath: filePath,
+                                            studyDate: studyDate,
+                                            modality: 'CT',
+                                          );
+
+                                      await DatabaseService.instance.logAudit(
+                                        'IMAGE_CAPTURED',
+                                        imageId,
+                                      );
+
+                                      // ✅ Refresh audit and pending orders
+                                      Provider.of<AuditProvider>(
+                                        context,
+                                        listen: false,
+                                      ).refresh();
+                                      Provider.of<OrderProvider>(
+                                        context,
+                                        listen: false,
+                                      ).refresh();
+
+                                      ScaffoldMessenger.of(
+                                        context,
+                                      ).showSnackBar(
+                                        SnackBar(
+                                          content: Text(
+                                            'Image captured for ${order.patientName}',
+                                          ),
+                                        ),
+                                      );
                                     },
                                   );
                                 },
@@ -169,29 +213,10 @@ class MainScreen extends StatelessWidget {
             ),
           ),
           // Bottom: Audit Panel
-          Expanded(
-            flex: 1,
-            child: Container(
-              margin: const EdgeInsets.all(8),
-              padding: const EdgeInsets.all(8),
-              color: Colors.grey.shade200,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: const [
-                  Text(
-                    'Audit & Timeline',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Expanded(
-                    child: Center(child: Text('Live event log goes here')),
-                  ),
-                ],
-              ),
-            ),
-          ),
+          AuditPane(),
         ],
       ),
     );
   }
 }
+

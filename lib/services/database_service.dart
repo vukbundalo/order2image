@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:order2image/models/audit.dart';
 import 'package:path/path.dart' as p;
 import 'package:sqflite_common_ffi/sqflite_ffi.dart';
 
@@ -25,10 +26,7 @@ class DatabaseService {
     // Open or create the database
     _db = await databaseFactory.openDatabase(
       dbPath,
-      options: OpenDatabaseOptions(
-        version: 1,
-        onCreate: _createSchema,
-      ),
+      options: OpenDatabaseOptions(version: 1, onCreate: _createSchema),
     );
     return _db!;
   }
@@ -57,14 +55,16 @@ class DatabaseService {
       );
     ''');
     await db.execute('''
-      CREATE TABLE Image (
-        ImageID TEXT PRIMARY KEY,
-        PatientID TEXT,
-        FilePath TEXT,
-        StudyDate TEXT,
-        Modality TEXT,
-        FOREIGN KEY(PatientID) REFERENCES Patient(PatientID)
-      );
+    CREATE TABLE Image (
+  ImageID TEXT PRIMARY KEY,
+  OrderID TEXT,
+  PatientID TEXT,
+  FilePath TEXT,
+  StudyDate TEXT,
+  Modality TEXT,
+  FOREIGN KEY(PatientID) REFERENCES Patient(PatientID),
+  FOREIGN KEY(OrderID) REFERENCES \"Order\"(OrderID)
+);
     ''');
     await db.execute('''
       CREATE TABLE Audit (
@@ -84,7 +84,7 @@ class DatabaseService {
       'LastName': 'Smith',
       'DOB': '1975-02-15',
       'Gender': 'F',
-      'Allergies': 'Penicillin'
+      'Allergies': 'Penicillin',
     });
     await db.insert('Patient', {
       'PatientID': 'P1002',
@@ -94,7 +94,7 @@ class DatabaseService {
       'LastName': 'Jones',
       'DOB': '1982-07-30',
       'Gender': 'M',
-      'Allergies': 'Iodine Contrast'
+      'Allergies': 'Iodine Contrast',
     });
     await db.insert('Patient', {
       'PatientID': 'P1003',
@@ -104,7 +104,7 @@ class DatabaseService {
       'LastName': 'Lee',
       'DOB': '1990-11-05',
       'Gender': 'F',
-      'Allergies': ''
+      'Allergies': '',
     });
   }
 
@@ -120,43 +120,69 @@ class DatabaseService {
   }
 
   Future<void> insertOrder({
-  required String orderId,
-  required String patientId,
-  required String procedureCode,
-  required String orderDateTime,
-}) async {
-  final dbInstance = await db;
-  await dbInstance.insert('Order', {
-    'OrderID': orderId,
-    'PatientID': patientId,
-    'ProcedureCode': procedureCode,
-    'OrderDateTime': orderDateTime,
-  });
-}
+    required String orderId,
+    required String patientId,
+    required String procedureCode,
+    required String orderDateTime,
+  }) async {
+    final dbInstance = await db;
+    await dbInstance.insert('Order', {
+      'OrderID': orderId,
+      'PatientID': patientId,
+      'ProcedureCode': procedureCode,
+      'OrderDateTime': orderDateTime,
+    });
+  }
 
-Future<void> logAudit(String eventType, String refId) async {
-  final dbInstance = await db;
-  await dbInstance.insert('Audit', {
-    'Time': DateTime.now().toIso8601String(),
-    'EventType': eventType,
-    'RefID': refId,
-  });
-}
+  Future<void> logAudit(String eventType, String refId) async {
+    final dbInstance = await db;
+    await dbInstance.insert('Audit', {
+      'Time': DateTime.now().toIso8601String(),
+      'EventType': eventType,
+      'RefID': refId,
+    });
+  }
 
-Future<List<Map<String, dynamic>>> getPendingOrders() async {
-  final dbInstance = await db;
-  return dbInstance.rawQuery('''
-    SELECT o.OrderID, o.PatientID, o.ProcedureCode, o.OrderDateTime,
-           p.FirstName, p.LastName
-    FROM "Order" o
-    JOIN Patient p ON o.PatientID = p.PatientID
-    LEFT JOIN Image i ON o.PatientID = i.PatientID
-    WHERE i.ImageID IS NULL
-    ORDER BY o.OrderDateTime DESC
+  Future<List<Map<String, dynamic>>> getPendingOrders() async {
+    final dbInstance = await db;
+    return dbInstance.rawQuery('''
+ SELECT o.OrderID, o.PatientID, o.ProcedureCode, o.OrderDateTime,
+       p.FirstName, p.LastName
+FROM "Order" o
+JOIN Patient p ON o.PatientID = p.PatientID
+LEFT JOIN Image i ON o.OrderID = i.OrderID
+WHERE i.ImageID IS NULL
+ORDER BY o.OrderDateTime DESC
+
   ''');
+  }
+
+  Future<void> insertImage({
+    required String imageId,
+    required String orderId,
+    required String patientId,
+    required String filePath,
+    required String studyDate,
+    required String modality,
+  }) async {
+    final dbInstance = await db;
+    await dbInstance.insert('Image', {
+      'ImageID': imageId,
+      'OrderID': orderId,
+      'PatientID': patientId,
+      'FilePath': filePath,
+      'StudyDate': studyDate,
+      'Modality': modality,
+    });
+  }
+
+  Future<List<AuditEvent>> getAuditLog() async {
+    final dbInstance = await db;
+    final rows = await dbInstance.query(
+      'Audit',
+      orderBy: 'Time ASC',
+      limit: 100,
+    );
+    return rows.map((row) => AuditEvent.fromMap(row)).toList();
+  }
 }
-
-
-}
-
-

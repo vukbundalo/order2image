@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:order2image/models/audit_provider.dart';
 import 'package:order2image/providers/order_provider.dart';
 import 'package:order2image/services/database_service.dart';
 import 'package:provider/provider.dart';
@@ -56,35 +57,37 @@ class _OrderFormState extends State<OrderForm> {
         ),
         const SizedBox(height: 8),
         ElevatedButton(
-          onPressed: () async {
-            final patient = provider.selectedPatient!;
-            final orderId = 'O${DateTime.now().millisecondsSinceEpoch}';
+  onPressed: () async {
+    final patient = provider.selectedPatient!;
+    final orderId = 'O${DateTime.now().millisecondsSinceEpoch}';
 
-            await DatabaseService.instance.insertOrder(
-              orderId: orderId,
-              patientId: patient.patientID,
-              procedureCode: selectedProcedure!,
-              orderDateTime: DateTime.now().toIso8601String(),
-            );
+    await DatabaseService.instance.insertOrder(
+      orderId: orderId,
+      patientId: patient.patientID,
+      procedureCode: selectedProcedure!,
+      orderDateTime: DateTime.now().toIso8601String(),
+    );
 
-            await DatabaseService.instance.logAudit('ORDER_CREATED', orderId);
-            Provider.of<OrderProvider>(context, listen: false).refresh();
+    await DatabaseService.instance.logAudit('ORDER_CREATED', orderId);
 
-            print('Order $orderId for ${patient.firstName} submitted.');
+    // ✅ Refresh audit and imaging (order) views
+    Provider.of<AuditProvider>(context, listen: false).refresh();
+    Provider.of<OrderProvider>(context, listen: false).refresh();
 
-            setState(() {
-              selectedProcedure = null;
-              selectedPriority = null;
-            });
+    print('Order $orderId for ${patient.firstName} submitted.');
 
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Order submitted successfully.')),
-            );
+    setState(() {
+      selectedProcedure = null;
+      selectedPriority = null;
+    });
 
-          },
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Order submitted successfully.')),
+    );
+  },
+  child: const Text('Send Order'),
+)
 
-          child: const Text('Send Order'),
-        ),
       ],
     );
   }
